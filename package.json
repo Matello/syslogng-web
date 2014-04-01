@@ -15,7 +15,8 @@
     "mongodb": "*",
     "socket.io": "*",
     "extend": "*",
-    "q": "~0.9.7"
+    "q": "~0.9.7",
+    "underscore": "*"
   },
   "devDependencies": {
     "grunt-contrib-jshint": "~0.6.0"
