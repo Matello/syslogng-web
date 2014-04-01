@@ -90,7 +90,7 @@ function SyslogNGMongoLogAdapter (configuration) {
 		 */
 		publicMembers.open = function _open(handler) {
 
-			if (!handler) {
+			if (!handler || !_.isFunction(handler)) {
 				throw 'no callback defined';
 			}
 
@@ -161,7 +161,7 @@ function SyslogNGMongoLogAdapter (configuration) {
 		 */
 		publicMembers.close = function _close(handler) {
 
-			if (!handler) {
+			if (!handler || !_.isFunction(handler)) {
 				throw 'no callback defined';
 			}
         
@@ -200,7 +200,7 @@ function SyslogNGMongoLogAdapter (configuration) {
 		 */
 		publicMembers.onStreamData = function _onStreamData(handler) {
         
-			if (!handler) {
+			if (!handler || !_.isFunction(handler)) {
 				throw 'no callback defined';
 			}
             
@@ -219,7 +219,7 @@ function SyslogNGMongoLogAdapter (configuration) {
 		 */
 		publicMembers.getLogs = function _getLogs(handler) {
 
-			if (!handler) {
+			if (!handler || !_.isFunction(handler)) {
 				throw 'no callback defined';
 			}
         
