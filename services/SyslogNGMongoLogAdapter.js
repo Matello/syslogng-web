@@ -1,7 +1,8 @@
 var _ = require('underscore'),
-    mongodb = require('mongodb'),
-    extend = require('extend'),
-    qs = require('querystring');
+	MongoClient = require('mongodb').MongoClient,
+	extend = require('extend'),
+	qs = require('querystring'),
+	q = require('q');
 
 /**
  * syslog-ng MongoDB adapter class
@@ -50,8 +51,8 @@ function SyslogNGMongoLogAdapter (configuration) {
 				$natural: 1
 			}
 		};
-	        
-		privateMembers.getConnectionString = function __getConnectionString () {
+		
+		privateMembers.connectionString = (function _generateConnectionString() {
 			var cs = 'mongodb://';
 	
 			if (config.username) {
@@ -77,7 +78,7 @@ function SyslogNGMongoLogAdapter (configuration) {
 			}
 			
 			return cs;
-		};
+		}());
 	}());
 
 	(function _definePublicMembers() {
@@ -94,7 +95,7 @@ function SyslogNGMongoLogAdapter (configuration) {
 				throw 'no callback defined';
 			}
 
-			mongodb.MongoClient.connect(privateMembers.getConnectionString(), function _mongoClientConnectHandler(err, db) {
+			MongoClient.connect(privateMembers.connectionString, function _mongoClientConnectHandler(err, db) {
             
 				if (err) {
 					return handler(err);
@@ -164,28 +165,51 @@ function SyslogNGMongoLogAdapter (configuration) {
 			if (!handler || !_.isFunction(handler)) {
 				throw 'no callback defined';
 			}
-        
+			
 			privateMembers.stream = null;
-                            
-			privateMembers.cursor.close(function _cursorCloseHandler(err) {
-				if (err) {
-					return handler(err);
-				}
-
-				privateMembers.cursor = null;
-				privateMembers.collection = null;
-
-				privateMembers.connection.close(function _connectionCloseHandler(err, result) {
+			
+			var closeCursorDeferred = q.defer(),
+			    closeConnectionDeferred = q.defer();
+                        
+                        if (privateMembers.cursor) {
+                        	privateMembers.cursor.close(function _cursorCloseHandler(err) {
 					if (err) {
-						return handler(err);
+						return closeCursorDeferred.promise.reject(err);	
 					}
 
-					privateMembers.connection = null;
-					privateMembers.numCollected = 0;
-					privateMembers.dateStarted = null;
-                    
-					handler(null);
-				});
+					privateMembers.cursor = null;
+					privateMembers.collection = null;
+					
+					closeCursorDeferred.promise.resolve();	
+				});	
+                        }
+                        else {
+                        	closeCursorDeferred.promise.resolve();	
+                        }
+                        
+                        closeCursorDeferred.promise.then(function () {
+	                        if (privateMembers.connection) {
+	                        	privateMembers.connection.close(function _connectionCloseHandler(err, result) {
+						if (err) {
+							return closeConnectionDeferred.promise.reject(err);
+						}
+	
+						privateMembers.connection = null;
+						privateMembers.numCollected = 0;
+						privateMembers.dateStarted = null;
+	                    
+						closeConnectionDeferred.promise.resolve();	
+					});
+	                        }
+	                        else {
+	                        	closeConnectionDeferred.promise.resolve();	
+	                        }	
+                        });
+			
+			closeConnectionDeferred.promise.then(function () {
+				handler(null);
+			}, function (err) {
+				handler(err, null);	
 			});
 
 			return publicMembers;
@@ -205,7 +229,7 @@ function SyslogNGMongoLogAdapter (configuration) {
 			}
             
 			if (_.isFunction(handler)) {
-				privateMembers.streamDataHandlers.push(handler));
+				privateMembers.streamDataHandlers.push(handler);
 			}
 
 			return publicMembers;
@@ -221,6 +245,10 @@ function SyslogNGMongoLogAdapter (configuration) {
 
 			if (!handler || !_.isFunction(handler)) {
 				throw 'no callback defined';
+			}
+			
+			if (!privateMembers.collection) {
+				throw 'collection not set; did you call open() ?';
 			}
         
 			privateMembers.collection.find({}, extend({}, privateMembers.collectionFindOptions, {
