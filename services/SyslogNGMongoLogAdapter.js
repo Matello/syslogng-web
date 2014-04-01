@@ -188,15 +188,16 @@ function SyslogNGMongoLogAdapter (configuration) {
                         }
                         
                         closeCursorDeferred.promise.then(function () {
+                        	
+                        	privateMembers.cursor = null;
+                        	
 	                        if (privateMembers.connection) {
 	                        	privateMembers.connection.close(function _connectionCloseHandler(err, result) {
 						if (err) {
 							return closeConnectionDeferred.promise.reject(err);
 						}
 	
-						privateMembers.connection = null;
-						privateMembers.numCollected = 0;
-						privateMembers.dateStarted = null;
+						
 	                    
 						closeConnectionDeferred.promise.resolve();	
 					});
@@ -207,6 +208,10 @@ function SyslogNGMongoLogAdapter (configuration) {
                         });
 			
 			closeConnectionDeferred.promise.then(function () {
+				privateMembers.connection = null;
+				privateMembers.numCollected = 0;
+				privateMembers.dateStarted = null;
+						
 				handler(null);
 			}, function (err) {
 				handler(err, null);	
