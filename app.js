@@ -10,7 +10,7 @@ var express = require('express'),
 	config = require('./config'),
 	pkg = require('./package'),
 	q = require('q'),
-	SyslogNGMongoLogAdapter = require('services/SyslogNGMongoLogAdapter');
+	SyslogNGMongoLogAdapter = require('./services/SyslogNGMongoLogAdapter');
 
 var app = express();
 
