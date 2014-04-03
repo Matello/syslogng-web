@@ -35,6 +35,7 @@ app.get('/views/main', routes.main);
 // socket.io to stream log messages
 var server = http.createServer(app);
 var io = sio.listen(server);
+var ioSockets = [];
 
 // Reduce log messages in production environment (WARN & ERROR)
 io.set('log level', process.env.NODE_ENV === 'production' ? 1 : 3);
@@ -44,7 +45,7 @@ console.log('initializing subsystem');
 // This promise will be resolved when the adapter is ready
 var subsystemUpDeferred = q.defer();
 
-var logAdapter = new SyslogNGMongoLogAdapter(config);
+var logAdapter = new SyslogNGMongoLogAdapter(config.db);
 
 io.sockets.on('fetchAll', function (socket) {
 	logAdapter.getLogs(function (err, logs) {
@@ -57,6 +58,14 @@ io.sockets.on('fetchAll', function (socket) {
 });
 
 io.sockets.on('connection', function (socket) {
+	
+	ioSockets.push(socket);
+	
+	socket.on('close', function () {
+		console.log('socket closed');
+		ioSockets.splice(ioSockets.indexOf(socket), 1);
+	});
+
 	logAdapter.getLogs(function (err, logs) {
 		if (err) {
 			return console.error(err);
@@ -85,6 +94,9 @@ logAdapter.open(function (err) {
 
 // shutdown listener
 server.on('close', function () {
+
+	console.log('closing server');
+	
 	logAdapter.close(function (err) {
 		
 		var returnValue = 0;
@@ -103,7 +115,14 @@ server.on('close', function () {
 // catch SIGTERM and SIGINT
 var shutdown = function () {
 	console.log('syslog-ng ' + pkg.version + ' shutting down');
-	server.close();
+	
+	io.sockets.removeAllListeners();	
+	
+	ioSockets.forEach(function (socket) {
+		socket.store.destroy(2);
+	});
+		
+	io.server.close();
 };
 
 process.on('SIGTERM', shutdown).on('SIGINT', shutdown);
