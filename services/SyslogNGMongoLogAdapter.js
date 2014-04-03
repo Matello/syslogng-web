@@ -105,7 +105,7 @@ function SyslogNGMongoLogAdapter (configuration) {
 
 				privateMembers.collection = db.collection(config.collectionName);
 
-				collection.options(function _collectionOptionsHandler(err, options) {
+				privateMembers.collection.options(function _collectionOptionsHandler(err, options) {
 					if (err) {
 						return handler(err);
 					}
@@ -118,7 +118,7 @@ function SyslogNGMongoLogAdapter (configuration) {
 						return handler('collection is not capped');
 					}
 
-					privateMembers.cursor = collection.find({}, extend({}, privateMembers.collectionFindOptions, {
+					privateMembers.cursor = privateMembers.collection.find({}, extend({}, privateMembers.collectionFindOptions, {
 						tailable: true,
 						awaitdata: true,
 						numberOfRetries: -1
@@ -166,46 +166,64 @@ function SyslogNGMongoLogAdapter (configuration) {
 				throw 'no callback defined';
 			}
 			
+			console.log('stream = null');
 			privateMembers.stream = null;
 			
 			var closeCursorDeferred = q.defer(),
 			    closeConnectionDeferred = q.defer();
                         
-                        if (privateMembers.cursor) {
-                        	privateMembers.cursor.close(function _cursorCloseHandler(err) {
+            if (privateMembers.cursor) {
+
+            	console.log('closing cursor');
+            	
+               	privateMembers.cursor.close(function _cursorCloseHandler(err) {
+               	
+               		console.log('close cursor result', err);
+               	
 					if (err) {
-						return closeCursorDeferred.promise.reject(err);	
+						return closeCursorDeferred.reject(err);	
 					}
 
+					console.log('cursor = null');
 					privateMembers.cursor = null;
+					
+					console.log('collection = null');
 					privateMembers.collection = null;
 					
-					closeCursorDeferred.promise.resolve();	
+					closeCursorDeferred.resolve();	
 				});	
-                        }
-                        else {
-                        	closeCursorDeferred.promise.resolve();	
-                        }
+            }
+            else {
+            	console.log('no cursor');
+              	closeCursorDeferred.resolve();	
+            }
                         
-                        closeCursorDeferred.promise.then(function () {
+            closeCursorDeferred.promise.then(function () {
                         	
-                        	privateMembers.cursor = null;
+                console.log('cursor = null (2)');
+          		privateMembers.cursor = null;
                         	
-	                        if (privateMembers.connection) {
-	                        	privateMembers.connection.close(function _connectionCloseHandler(err, result) {
+	            if (privateMembers.connection) {
+	            
+	            	console.log('closing connection');
+	            	
+	               	privateMembers.connection.close(true, function _connectionCloseHandler(err, result) {
+	               	
+	               		console.log('close connection result', err, result);
+	               		
 						if (err) {
-							return closeConnectionDeferred.promise.reject(err);
+							return closeConnectionDeferred.reject(err);
 						}
-	
-						
-	                    
-						closeConnectionDeferred.promise.resolve();	
+	        
+						closeConnectionDeferred.resolve();	
 					});
-	                        }
-	                        else {
-	                        	closeConnectionDeferred.promise.resolve();	
-	                        }	
-                        });
+	            }
+	            else {
+	              	closeConnectionDeferred.resolve();	
+	            }	
+            }, function (err) {
+            	closeConnectionDeferred.reject(err);
+            });
 			
 			closeConnectionDeferred.promise.then(function () {
 				privateMembers.connection = null;
@@ -228,6 +246,8 @@ function SyslogNGMongoLogAdapter (configuration) {
 		 * @return {SyslogNGMongoLogAdapter} this instance
 		 */
 		publicMembers.onStreamData = function _onStreamData(handler) {
+		
+			console.log('streamed data');
         
 			if (!handler || !_.isFunction(handler)) {
 				throw 'no callback defined';
@@ -247,6 +267,8 @@ function SyslogNGMongoLogAdapter (configuration) {
 		 * @return {SyslogNGMongoLogAdapter} this instance
 		 */
 		publicMembers.getLogs = function _getLogs(handler) {
+		
+			console.log('getLogs()');
 
 			if (!handler || !_.isFunction(handler)) {
 				throw 'no callback defined';
@@ -260,7 +282,7 @@ function SyslogNGMongoLogAdapter (configuration) {
 				sort: {
 					'DATE': -1
 				}
-			}).toArray(function _getLogsToArrayHandler(err, data) {
+			})).toArray(function _getLogsToArrayHandler(err, data) {
 				if (err) {
 					return handler(err, null);
 				}
