@@ -62,7 +62,6 @@ io.sockets.on('connection', function (socket) {
 	ioSockets.push(socket);
 	
 	socket.on('close', function () {
-		console.log('socket closed');
 		ioSockets.splice(ioSockets.indexOf(socket), 1);
 	});
 
