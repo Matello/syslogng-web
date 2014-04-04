@@ -1,9 +1,9 @@
 popover(trigger='#settings-btn', position='bottom', title='Choose fields')
 	div.checkbox(ng-repeat='field in fields track by field.name')
 		label
-			input(type="checkbox" ng-model='field.enabled')
-			{{ field.description }}
-				
+			input(type="checkbox", ng-model='field.enabled') 
+			| {{ field.description }}
+
 div.page-header
 	h1 {{ config.db.host }} logs
 
