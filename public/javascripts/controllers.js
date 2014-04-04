@@ -1,6 +1,6 @@
 angular.module('syslogng-web')
 
-	.controller('MainController', function ($scope, $location, $timeout, $http, $sce, $filter, $q, $cookies, socketEventHandler, logger, config, pkg, mongoLogMessageSource) {
+	.controller('MainController', function ($scope, $location, $timeout, $http, $sce, $filter, $q, $cookies, socketEventHandler, logger, config, pkg) {
 
 		$scope.fields  = [{
 			name: 'DATE',
@@ -206,28 +206,34 @@ angular.module('syslogng-web')
 			$scope.page = 1;
 		};
 		
-		$scope.refresh = function () {
-			
-			logger.info("refreshing log messages");
-			
-			mongoLogMessageSource.fetchAll().then(function (data) {
-				$scope.messages = data;
-			}, function (error) {
-				logger.error(error);
-			});
+		$scope.refresh = function () {			
+			scope.clear();
+			socketEventHandler.emit('fetchAll');
 		};
-		
-		// Get log messages as they come		
-		mongoLogMessageSource.messageReceived(function (data) {
+
+		// Get log messages as they come				
+		socketEventHandler.on('log', function (data) {
 			$scope.$apply(function (s) {
-				s.status = '';							
+				s.status = '';
+				
+				if (s.messages.length === MAX_MESSAGES_COUNT) {
+					s.messages.pop();
+				}
+				
 				s.messages.unshift(data);
 			});
 		});
 		
-		mongoLogMessageSource.fetchAll().then(function (data) {
-			$scope.messages = data;
-		}, function (error) {
-			logger.error(error);
+		// Keep all logs
+		socketEventHandler.on('logs', function (data) {
+			$scope.$apply(function (s) {			
+				var slicedData = data.length >= MAX_MESSAGES_COUNT ? data.slice(0, MAX_MESSAGES_COUNT - 1) : data;
+				
+				if (slicedData.length < data.length) {
+					logger.log('truncated ' + (data.length - slicedData.length) + ' messages');
+				}
+				
+				s.messages = slicedData;
+			});
 		});
 	});
